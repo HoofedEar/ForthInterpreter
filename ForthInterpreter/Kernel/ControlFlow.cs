@@ -1,205 +1,214 @@
-﻿using ForthInterpreter.DataTypes;
+﻿using System.Collections.Generic;
 using ForthInterpreter.Interpret;
 using ForthInterpreter.Interpret.Words;
 using ForthInterpreter.Interpret.Words.ControlFlow;
 
-namespace ForthInterpreter.Kernel
+namespace ForthInterpreter.Kernel;
+
+public static class ControlFlow
 {
-    public static class ControlFlow
+    private static readonly Word[] primitives =
     {
-        public static Word[] Primitives { get { return primitives; } }
+        new("if", true, true,
+            env =>
+            {
+                var ifElseThenWord = new IfElseThenWord(env);
+                ifElseThenWord.Compile(env);
+                env.CompilingWord = ifElseThenWord.TrueBranchWord;
 
-        private static Word[] primitives = new Word[]
+                env.ControlFlowStack.Push(ifElseThenWord);
+                env.ControlFlowStack.Push(ifElseThenWord.TrueBranchWord);
+            }),
+        new("else", true, true,
+            env =>
+            {
+                Validate.PopControlFlowStack(env, false, "branch", typeof(ControlFlowWord));
+                var ifElseThenWord =
+                    (IfElseThenWord) Validate.PeekControlFlowStack(env, false, "if", typeof(IfElseThenWord));
+
+                env.CompilingWord = ifElseThenWord.FalseBranchWord;
+                env.ControlFlowStack.Push(ifElseThenWord.FalseBranchWord);
+            }),
+        new("then", true, true,
+            env =>
+            {
+                Validate.PopControlFlowStack(env, false, "branch", typeof(ControlFlowWord));
+                Validate.PopControlFlowStack(env, false, "if", typeof(IfElseThenWord));
+
+                env.CompilingWord = env.ControlFlowStack.Peek();
+            }),
+
+
+        new ExitWord("exit"),
+
+        // 'quit' and 'abort' never caught by any word
+        new ExitWord("quit", env => env.ReturnStack.Clear()),
+        new ExitWord("abort", env =>
         {
-            new Word("if", true, true,
-                env =>
-                {
-                    IfElseThenWord ifElseThenWord = new IfElseThenWord(env);
-                    ifElseThenWord.Compile(env);
-                    env.CompilingWord = ifElseThenWord.TrueBranchWord;
-
-                    env.ControlFlowStack.Push(ifElseThenWord);
-                    env.ControlFlowStack.Push(ifElseThenWord.TrueBranchWord);
-                }),
-            new Word("else", true, true,
-                env =>
-                {
-                    Validate.PopControlFlowStack(env, false, "branch", typeof(ControlFlowWord));
-                    IfElseThenWord ifElseThenWord = (IfElseThenWord)Validate.PeekControlFlowStack(env, false, "if", typeof(IfElseThenWord));
-                    
-                    env.CompilingWord = ifElseThenWord.FalseBranchWord;
-                    env.ControlFlowStack.Push(ifElseThenWord.FalseBranchWord);
-                }),
-            new Word("then", true, true,
-                env =>
-                {
-                    Validate.PopControlFlowStack(env, false, "branch", typeof(ControlFlowWord));
-                    Validate.PopControlFlowStack(env, false, "if", typeof(IfElseThenWord));
-                    
-                    env.CompilingWord = env.ControlFlowStack.Peek();
-                }),
-            
-            
-            new ExitWord("exit"),
-            
-            // 'quit' and 'abort' never caught by any word
-            new ExitWord("quit", env => env.ReturnStack.Clear() ),
-            new ExitWord("abort", env => { env.DataStack.Clear(); env.ReturnStack.Clear(); }),
-
-            
-            new Word("do", true, true,
-                env =>
-                {
-                    DoLoopWord doLoopWord = new DoLoopWord(env);
-                    doLoopWord.Compile(env);
-                    env.CompilingWord = doLoopWord.CycleWord;
-
-                    env.ControlFlowStack.Push(doLoopWord);
-                    env.ControlFlowStack.Push(doLoopWord.CycleWord);
-                }),
-            new Word("?do", true, true,
-                env =>
-                {
-                    DoLoopWord doLoopWord = new DoLoopWord(env);
-                    doLoopWord.PerformsInitialTest = true;
-                    doLoopWord.Compile(env);
-                    env.CompilingWord = doLoopWord.CycleWord;
-
-                    env.ControlFlowStack.Push(doLoopWord);
-                    env.ControlFlowStack.Push(doLoopWord.CycleWord);
-                }),
-            new Word("loop", true, true,
-                env =>
-                {
-                    Validate.PopControlFlowStack(env, false, "cycle", typeof(ControlFlowWord));
-                    Validate.PopControlFlowStack(env, false, "do", typeof(DoLoopWord));
-                    
-                    env.CompilingWord = env.ControlFlowStack.Peek();
-                }),
-            new Word("+loop", true, true,
-                env =>
-                {
-                    Validate.PopControlFlowStack(env, false, "cycle", typeof(ControlFlowWord));
-                    DoLoopWord doLoopWord = (DoLoopWord)Validate.PopControlFlowStack(env, false, "do", typeof(DoLoopWord));
-                    doLoopWord.ReadsIncrement = true;
-
-                    env.CompilingWord = env.ControlFlowStack.Peek();
-                }),
-            new Word("i",
-                env =>
-                {
-                    env.DataStack.Push(env.ReturnStack.Peek());
-                }),
-            new Word("j",
-                env =>
-                {
-                    env.DataStack.Push(env.ReturnStack[2]);
-                }),
-            new Word("unloop",
-                env =>
-                {
-                    env.ReturnStack.Pop();
-                    env.ReturnStack.Pop();
-                }),
-            new ExitWord("leave", env => { env.ReturnStack.Pop(); env.ReturnStack.Pop(); }),
-            new ExitWord("?leave", true, env => { env.ReturnStack.Pop(); env.ReturnStack.Pop(); }),
-            
-            
-            new Word("begin", true, true,
-                env =>
-                {
-                    BeginWord beginWord = new BeginWord(env);
-                    beginWord.Compile(env);
-                    env.CompilingWord = beginWord.CycleWord;
-
-                    env.ControlFlowStack.Push(beginWord);
-                    env.ControlFlowStack.Push(beginWord.CycleWord);
-                }),
-            new Word("again", true, true,
-                env =>
-                {
-                    Validate.PopControlFlowStack(env, false, "cycle", typeof(ControlFlowWord));
-                    Validate.PopControlFlowStack(env, false, "begin", typeof(BeginWord));
-
-                    env.CompilingWord = env.ControlFlowStack.Peek();
-                }),
-            new Word("until", true, true,
-                env =>
-                {
-                    Validate.PopControlFlowStack(env, false, "cycle", typeof(ControlFlowWord));
-                    BeginWord beginWord = (BeginWord)Validate.PopControlFlowStack(env, false, "begin", typeof(BeginWord));
-                    
-                    beginWord.TestsUntil = true;
-                    
-                    env.CompilingWord = env.ControlFlowStack.Peek();
-                }),
-
-            
-            new Word("while", true, true,
-                env =>
-                {
-                    ControlFlowWord oldCycleWord = (ControlFlowWord)Validate.PopControlFlowStack(env, false, "cycle", typeof(ControlFlowWord));
-                    Validate.PopControlFlowStack(env, false, "begin", typeof(BeginWord));
-                    
-                    Word parentWord = env.ControlFlowStack.Peek();
-                    BeginWhileRepeatWord beginWhileRepeatWord = new BeginWhileRepeatWord(env);
-                    parentWord.ExecuteWords[parentWord.ExecuteWords.Count - 1] = beginWhileRepeatWord;
-
-                    beginWhileRepeatWord.WhileTestWord.ExecuteWords.AddRange(oldCycleWord.ExecuteWords);
-                    
-                    env.CompilingWord = beginWhileRepeatWord.CycleWord;
-
-                    env.ControlFlowStack.Push(beginWhileRepeatWord);
-                    env.ControlFlowStack.Push(beginWhileRepeatWord.CycleWord);
-                }),
-            new Word("repeat", true, true,
-                env =>
-                {
-                    Validate.PopControlFlowStack(env, false, "cycle", typeof(ControlFlowWord));
-                    Validate.PopControlFlowStack(env, false, "begin-while", typeof(BeginWhileRepeatWord));
-                    
-                    env.CompilingWord = env.ControlFlowStack.Peek();
-                }),
+            env.DataStack.Clear();
+            env.ReturnStack.Clear();
+        }),
 
 
-            new Word("case", true, true,
-                env =>
-                {
-                    CaseWord caseWord = new CaseWord(env);
-                    caseWord.Compile(env);
-                    env.CompilingWord = caseWord.CaseBodyWord;
+        new("do", true, true,
+            env =>
+            {
+                var doLoopWord = new DoLoopWord(env);
+                doLoopWord.Compile(env);
+                env.CompilingWord = doLoopWord.CycleWord;
 
-                    env.ControlFlowStack.Push(caseWord);
-                    env.ControlFlowStack.Push(caseWord.CaseBodyWord);
-                }),
-            new Word("endcase", true, true,
-                env =>
+                env.ControlFlowStack.Push(doLoopWord);
+                env.ControlFlowStack.Push(doLoopWord.CycleWord);
+            }),
+        new("?do", true, true,
+            env =>
+            {
+                var doLoopWord = new DoLoopWord(env)
                 {
-                    Validate.PopControlFlowStack(env, false, "case-body", typeof(ControlFlowWord));
-                    Validate.PopControlFlowStack(env, false, "case", typeof(CaseWord));
-                    
-                    env.CompilingWord = env.ControlFlowStack.Peek();
-                }),
-            new Word("of", true, true,
-                env =>
-                {
-                    Validate.PeekControlFlowStack(env, false, "case-body", typeof(ControlFlowWord));
+                    PerformsInitialTest = true
+                };
+                doLoopWord.Compile(env);
+                env.CompilingWord = doLoopWord.CycleWord;
 
-                    OfWord ofWord = new OfWord(env);
-                    ofWord.Compile(env);
-                    env.CompilingWord = ofWord.OfBodyWord;
+                env.ControlFlowStack.Push(doLoopWord);
+                env.ControlFlowStack.Push(doLoopWord.CycleWord);
+            }),
+        new("loop", true, true,
+            env =>
+            {
+                Validate.PopControlFlowStack(env, false, "cycle", typeof(ControlFlowWord));
+                Validate.PopControlFlowStack(env, false, "do", typeof(DoLoopWord));
 
-                    env.ControlFlowStack.Push(ofWord);
-                    env.ControlFlowStack.Push(ofWord.OfBodyWord);
-                }),
-            new Word("endof", true, true,
-                env =>
-                {
-                    Validate.PopControlFlowStack(env, false, "of-body", typeof(ControlFlowWord));
-                    Validate.PopControlFlowStack(env, false, "of", typeof(OfWord));
-                    
-                    env.CompilingWord = env.ControlFlowStack.Peek();
-                })
-        };
-    }
+                env.CompilingWord = env.ControlFlowStack.Peek();
+            }),
+        new("+loop", true, true,
+            env =>
+            {
+                Validate.PopControlFlowStack(env, false, "cycle", typeof(ControlFlowWord));
+                var doLoopWord = (DoLoopWord) Validate.PopControlFlowStack(env, false, "do", typeof(DoLoopWord));
+                doLoopWord.ReadsIncrement = true;
+
+                env.CompilingWord = env.ControlFlowStack.Peek();
+            }),
+        new("i",
+            env => { env.DataStack.Push(env.ReturnStack.Peek()); }),
+        new("j",
+            env => { env.DataStack.Push(env.ReturnStack[2]); }),
+        new("unloop",
+            env =>
+            {
+                env.ReturnStack.Pop();
+                env.ReturnStack.Pop();
+            }),
+        new ExitWord("leave", env =>
+        {
+            env.ReturnStack.Pop();
+            env.ReturnStack.Pop();
+        }),
+        new ExitWord("?leave", true, env =>
+        {
+            env.ReturnStack.Pop();
+            env.ReturnStack.Pop();
+        }),
+
+
+        new("begin", true, true,
+            env =>
+            {
+                var beginWord = new BeginWord(env);
+                beginWord.Compile(env);
+                env.CompilingWord = beginWord.CycleWord;
+
+                env.ControlFlowStack.Push(beginWord);
+                env.ControlFlowStack.Push(beginWord.CycleWord);
+            }),
+        new("again", true, true,
+            env =>
+            {
+                Validate.PopControlFlowStack(env, false, "cycle", typeof(ControlFlowWord));
+                Validate.PopControlFlowStack(env, false, "begin", typeof(BeginWord));
+
+                env.CompilingWord = env.ControlFlowStack.Peek();
+            }),
+        new("until", true, true,
+            env =>
+            {
+                Validate.PopControlFlowStack(env, false, "cycle", typeof(ControlFlowWord));
+                var beginWord = (BeginWord) Validate.PopControlFlowStack(env, false, "begin", typeof(BeginWord));
+
+                beginWord.TestsUntil = true;
+
+                env.CompilingWord = env.ControlFlowStack.Peek();
+            }),
+
+
+        new("while", true, true,
+            env =>
+            {
+                var oldCycleWord =
+                    (ControlFlowWord) Validate.PopControlFlowStack(env, false, "cycle", typeof(ControlFlowWord));
+                Validate.PopControlFlowStack(env, false, "begin", typeof(BeginWord));
+
+                var parentWord = env.ControlFlowStack.Peek();
+                var beginWhileRepeatWord = new BeginWhileRepeatWord(env);
+                parentWord.ExecuteWords[^1] = beginWhileRepeatWord;
+
+                beginWhileRepeatWord.WhileTestWord.ExecuteWords.AddRange(oldCycleWord.ExecuteWords);
+
+                env.CompilingWord = beginWhileRepeatWord.CycleWord;
+
+                env.ControlFlowStack.Push(beginWhileRepeatWord);
+                env.ControlFlowStack.Push(beginWhileRepeatWord.CycleWord);
+            }),
+        new("repeat", true, true,
+            env =>
+            {
+                Validate.PopControlFlowStack(env, false, "cycle", typeof(ControlFlowWord));
+                Validate.PopControlFlowStack(env, false, "begin-while", typeof(BeginWhileRepeatWord));
+
+                env.CompilingWord = env.ControlFlowStack.Peek();
+            }),
+
+
+        new("case", true, true,
+            env =>
+            {
+                var caseWord = new CaseWord(env);
+                caseWord.Compile(env);
+                env.CompilingWord = caseWord.CaseBodyWord;
+
+                env.ControlFlowStack.Push(caseWord);
+                env.ControlFlowStack.Push(caseWord.CaseBodyWord);
+            }),
+        new("endcase", true, true,
+            env =>
+            {
+                Validate.PopControlFlowStack(env, false, "case-body", typeof(ControlFlowWord));
+                Validate.PopControlFlowStack(env, false, "case", typeof(CaseWord));
+
+                env.CompilingWord = env.ControlFlowStack.Peek();
+            }),
+        new("of", true, true,
+            env =>
+            {
+                Validate.PeekControlFlowStack(env, false, "case-body", typeof(ControlFlowWord));
+
+                var ofWord = new OfWord(env);
+                ofWord.Compile(env);
+                env.CompilingWord = ofWord.OfBodyWord;
+
+                env.ControlFlowStack.Push(ofWord);
+                env.ControlFlowStack.Push(ofWord.OfBodyWord);
+            }),
+        new("endof", true, true,
+            env =>
+            {
+                Validate.PopControlFlowStack(env, false, "of-body", typeof(ControlFlowWord));
+                Validate.PopControlFlowStack(env, false, "of", typeof(OfWord));
+
+                env.CompilingWord = env.ControlFlowStack.Peek();
+            })
+    };
+
+    public static IEnumerable<Word> Primitives => primitives;
 }

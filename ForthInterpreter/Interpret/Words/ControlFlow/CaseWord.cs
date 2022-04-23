@@ -1,33 +1,36 @@
-﻿
-namespace ForthInterpreter.Interpret.Words.ControlFlow
+﻿using System.Collections.Generic;
+
+namespace ForthInterpreter.Interpret.Words.ControlFlow;
+
+public class CaseWord : ControlFlowWord
 {
-    public class CaseWord : ControlFlowWord
+    public CaseWord(Environment env)
+        : base("case", env)
     {
-        public CaseWord(Environment env)
-            : base("case", env)
-        {
-            CaseBodyWord = new ControlFlowWord("case-body", env);
+        CaseBodyWord = new ControlFlowWord("case-body", env);
 
-            PrimitiveExecuteAction = executeCase;
-        }
+        PrimitiveExecuteAction = ExecuteCase;
+    }
 
-        public override string[] RecognizedExitWordNames { get { return new[] { "leave-case" }; } }
+    protected override IEnumerable<string> RecognizedExitWordNames
+    {
+        get { return new[] {"leave-case"}; }
+    }
 
-        public ControlFlowWord CaseBodyWord { get; private set; }
-
-        private void executeCase(Environment env)
-        {
-            CaseBodyWord.Execute(env);
-
-            if (env.IsExitMode) return;
-
-            env.DataStack.Pop();
-        }
+    public ControlFlowWord CaseBodyWord { get; }
 
 
-        protected override string SeeNodeStartDelimiter { get { return "case"; } }
-        protected override string SeeNodeEndDelimiter { get { return "endcase"; } }
+    protected override string SeeNodeStartDelimiter => "case";
+    protected override string SeeNodeEndDelimiter => "endcase";
 
-        protected override string SeeNodeFrontBodyDescription { get { return CaseBodyWord.SeeNodeDescription; } }
+    protected override string SeeNodeFrontBodyDescription => CaseBodyWord.SeeNodeDescription;
+
+    private void ExecuteCase(Environment env)
+    {
+        CaseBodyWord.Execute(env);
+
+        if (env.IsExitMode) return;
+
+        env.DataStack.Pop();
     }
 }

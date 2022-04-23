@@ -1,13 +1,11 @@
-﻿
-namespace ForthInterpreter.LexicalScan.Tokens
-{
-    public class SignedIntegerToken : Token
-    {
-        public SignedIntegerToken(int value)
-        {
-            Value = value;
-        }
+﻿namespace ForthInterpreter.LexicalScan.Tokens;
 
-        public int Value { get; private set; }
+public class SignedIntegerToken : Token
+{
+    public SignedIntegerToken(int value)
+    {
+        Value = value;
     }
+
+    public int Value { get; }
 }

@@ -3,44 +3,39 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 
-namespace ForthInterpreter.IO
+namespace ForthInterpreter.IO;
+
+public static class FileLoader
 {
-    public static class FileLoader
+    public static string ReadResource(string resource)
     {
-        public static string ReadResource(string resource)
-        {
-            return ReadResource(Assembly.GetAssembly(typeof(FileLoader)), resource);
-        }
+        return ReadResource(Assembly.GetAssembly(typeof(FileLoader)), resource);
+    }
 
-        public static string ReadResource(Assembly assembly, string resource)
+    private static string ReadResource(Assembly assembly, string resource)
+    {
+        try
         {
-            try
-            {
-                Stream resourceStream = assembly.GetManifestResourceStream(resource);
-                using (StreamReader reader = new StreamReader(resourceStream))
-                {
-                    return reader.ReadToEnd();
-                }
-            }
-            catch
-            {
-                throw new ApplicationException(string.Format("Could not read resource '{0}'.", resource));
-            }
+            var resourceStream = assembly.GetManifestResourceStream(resource);
+            using var reader = new StreamReader(resourceStream ?? throw new InvalidOperationException());
+            return reader.ReadToEnd();
         }
-
-        public static IEnumerable<string> GetTextLines(string text)
+        catch
         {
-            using (StringReader reader = new StringReader(text))
-            {
-                while (true)
-                {
-                    string line = reader.ReadLine();
-                    if (line != null)
-                        yield return line;
-                    else
-                        break;
-                }
-            }
+            throw new ApplicationException($"Could not read resource '{resource}'.");
+        }
+    }
+
+    public static IEnumerable<string> GetTextLines(string text)
+    {
+        using var reader = new StringReader(text);
+        while (true)
+        {
+            var line = reader.ReadLine();
+            if (line != null)
+                yield return line;
+            else
+                break;
         }
     }
 }

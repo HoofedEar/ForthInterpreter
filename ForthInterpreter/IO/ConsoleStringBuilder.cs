@@ -1,46 +1,40 @@
 ﻿using System.Text;
 
-namespace ForthInterpreter.IO
-{
-    public class ConsoleStringBuilder
-    {
-        public ConsoleStringBuilder()
-            : this(80)
-        {
-        }
+namespace ForthInterpreter.IO;
 
-        public ConsoleStringBuilder(int maxColumns)
+public class ConsoleStringBuilder
+{
+    private readonly StringBuilder _stringBuilder = new();
+
+    public ConsoleStringBuilder(int maxColumns)
+    {
+        MaxColumns = maxColumns;
+        LastFilledColumn = 0;
+    }
+
+    private int MaxColumns { get; }
+    private int LastFilledColumn { get; set; }
+
+    private void Append(string value)
+    {
+        if (LastFilledColumn + value.Length > MaxColumns)
         {
-            MaxColumns = maxColumns;
+            if (LastFilledColumn < 80)
+                _stringBuilder.AppendLine();
             LastFilledColumn = 0;
         }
 
-        public int MaxColumns { get; private set; }
-        public int LastFilledColumn { get; private set; }
+        _stringBuilder.Append(value);
+        LastFilledColumn += value.Length;
+    }
 
-        public void Append(string value)
-        {
-            if (LastFilledColumn + value.Length > MaxColumns)
-            {
-                if (LastFilledColumn < 80)
-                    stringBuilder.AppendLine();
-                LastFilledColumn = 0;
-            }
+    public void AppendFormat(string format, params object[] args)
+    {
+        Append(string.Format(format, args));
+    }
 
-            stringBuilder.Append(value);
-            LastFilledColumn += value.Length;
-        }
-
-        public void AppendFormat(string format, params object[] args)
-        {
-            Append(string.Format(format, args));
-        }
-
-        public override string ToString()
-        {
-            return stringBuilder.ToString();
-        }
-
-        private StringBuilder stringBuilder = new StringBuilder();
+    public override string ToString()
+    {
+        return _stringBuilder.ToString();
     }
 }

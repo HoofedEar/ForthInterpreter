@@ -1,21 +1,16 @@
-﻿
-namespace ForthInterpreter.Interpret.Words
+﻿namespace ForthInterpreter.Interpret.Words;
+
+public class PostponeWord : InstanceWord
 {
-    public class PostponeWord : InstanceWord
+    public PostponeWord(Word postponedWord)
+        : base("postpone")
     {
-        public PostponeWord(Word postponedWord)
-            : base("postpone")
-        {
-            PostponedWordName = postponedWord.Name;
+        PostponedWordName = postponedWord.Name;
 
-            if (postponedWord.IsImmediate)
-                ExecuteWords.Add(postponedWord);
-            else
-                ExecuteWords.Add(new Word("", postponedWord.CompileOrExecute));
-        }
-
-        public string PostponedWordName { get; private set; }
-
-        public override string SeeNodeDescription { get { return string.Format("postpone {0}", PostponedWordName); } }
+        ExecuteWords.Add(postponedWord.IsImmediate ? postponedWord : new Word("", postponedWord.CompileOrExecute));
     }
+
+    private string PostponedWordName { get; }
+
+    public override string SeeNodeDescription => $"postpone {PostponedWordName}";
 }

@@ -1,83 +1,79 @@
-﻿using ForthInterpreter.Interpret;
+﻿using System.Collections.Generic;
+using ForthInterpreter.Interpret;
 using ForthInterpreter.Interpret.Words;
 
-namespace ForthInterpreter.Kernel
+namespace ForthInterpreter.Kernel;
+
+public static class Compiling
 {
-    public static class Compiling
+    private static readonly Word[] primitives =
     {
-        public static Word[] Primitives { get { return primitives; } }
+        new(":",
+            env =>
+            {
+                var wordName = Validate.ReadMandatoryWordName(env);
+                env.CompilingWord = new Word(wordName);
+                env.IsCompileMode = true;
 
-        private static Word[] primitives = new Word[]
-        {
-            new Word(":",
-                env =>
+                env.ControlFlowStack.Push(env.CompilingWord);
+            }),
+        new(";", true, true,
+            env =>
+            {
+                Word compilingWord;
+                if (env.ControlFlowStack.Count > 1)
                 {
-                    string wordName = Validate.ReadMandatoryWordName(env);
-                    env.CompilingWord = new Word(wordName);
-                    env.IsCompileMode = true;
-                    
-                    env.ControlFlowStack.Push(env.CompilingWord);
-                }),
-            new Word(";", true, true,
-                env =>
+                    Validate.PopControlFlowStack(env, false);
+                    compilingWord = Validate.PopControlFlowStack(env, true, null, typeof(DefiningWord));
+                }
+                else
                 {
-                    Word compilingWord = null;
-                    if (env.ControlFlowStack.Count > 1)
-                    {
-                        Validate.PopControlFlowStack(env, false);
-                        compilingWord = Validate.PopControlFlowStack(env, true, null, typeof(DefiningWord));
-                    }
-                    else
-                        compilingWord = Validate.PopControlFlowStack(env, true);
+                    compilingWord = Validate.PopControlFlowStack(env, true);
+                }
 
-                    env.Words.AddOrUpdate(compilingWord);
-                    env.LastCompiledWord = compilingWord;
-                    env.CompilingWord = null;
-                    env.IsCompileMode = false;
-                }),
-            new Word("[", true, false,
-                env =>
-                {
-                    env.IsCompileMode = false;
-                }),
-            new Word("]",
-                env =>
-                {
-                    env.IsCompileMode = true;
-                }),
-            new Word("postpone", true, false,
-                env =>
-                {
-                    Word word = Validate.ReadExistingWord(env);
-                    (new PostponeWord(word)).Compile(env);
-                }),
-            new Word("immediate",
-                env =>
-                {
-                    if (env.LastCompiledWord != null)
-                        env.LastCompiledWord.IsImmediate = true;
-                }),
-            new Word("literal", true, true,
-                env =>
-                {
-                    int cell = env.DataStack.Pop();
-                    (new LiteralWord(cell)).CompileOrExecute(env);
-                }),
+                env.Words.AddOrUpdate(compilingWord);
+                env.LastCompiledWord = compilingWord;
+                env.CompilingWord = null;
+                env.IsCompileMode = false;
+            }),
+        new("[", true, false,
+            env => { env.IsCompileMode = false; }),
+        new("]",
+            env => { env.IsCompileMode = true; }),
+        new("postpone", true, false,
+            env =>
+            {
+                var word = Validate.ReadExistingWord(env);
+                new PostponeWord(word).Compile(env);
+            }),
+        new("immediate",
+            env =>
+            {
+                if (env.LastCompiledWord != null)
+                    env.LastCompiledWord.IsImmediate = true;
+            }),
+        new("literal", true, true,
+            env =>
+            {
+                var cell = env.DataStack.Pop();
+                new LiteralWord(cell).CompileOrExecute(env);
+            }),
 
 
-            new Word("does>", true, true,
-                env =>
-                {
-                    Word compilingWord = Validate.PopControlFlowStack(env, true);
+        new("does>", true, true,
+            env =>
+            {
+                var compilingWord = Validate.PopControlFlowStack(env, true);
 
-                    DefiningWord definingWord = new DefiningWord(compilingWord.Name);
-                    definingWord.ChildDefineWord.ExecuteWords.AddRange(compilingWord.ExecuteWords);
-                    
-                    env.CompilingWord = definingWord.ChildExecuteWord;
-                    
-                    env.ControlFlowStack.Push(definingWord);
-                    env.ControlFlowStack.Push(definingWord.ChildExecuteWord);
-                })
-        };
-    }
+                var definingWord = new DefiningWord(compilingWord.Name);
+                definingWord.ChildDefineWord.ExecuteWords.AddRange(compilingWord.ExecuteWords);
+
+                env.CompilingWord = definingWord.ChildExecuteWord;
+
+                env.ControlFlowStack.Push(definingWord);
+                env.ControlFlowStack.Push(definingWord.ChildExecuteWord);
+            })
+    };
+
+    public static IEnumerable<Word> Primitives => primitives;
 }

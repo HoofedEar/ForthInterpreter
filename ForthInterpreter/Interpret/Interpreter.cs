@@ -2,92 +2,90 @@
 using ForthInterpreter.IO;
 using ForthInterpreter.Kernel;
 using ForthInterpreter.LexicalScan;
-using ForthInterpreter.LexicalScan.Tokens;
 
-namespace ForthInterpreter.Interpret
+namespace ForthInterpreter.Interpret;
+
+public class Interpreter
 {
-    public class Interpreter
+    public Interpreter()
     {
-        public Interpreter()
+        Environment = new Environment();
+
+        Environment.Words.AddRange(StackOperations.Primitives);
+        Environment.Words.AddRange(MathOperations.Primitives);
+        Environment.Words.AddRange(MemoryOperations.Primitives);
+        Environment.Words.AddRange(StringOperations.Primitives);
+        Environment.Words.AddRange(IoOperations.Primitives);
+        Environment.Words.AddRange(Variables.Primitives);
+        Environment.Words.AddRange(Compiling.Primitives);
+        Environment.Words.AddRange(ControlFlow.Primitives);
+        Environment.Words.AddRange(Comments.Primitives);
+        Environment.Words.AddRange(DevEnvironment.Primitives);
+
+        Interpret(KernelSourceCode);
+        Environment.LastCompiledWord = null;
+    }
+
+    public Environment Environment { get; }
+
+    private static string KernelSourceCode => FileLoader.ReadResource("ForthInterpreter.Kernel.Kernel.fth");
+
+    public void InterpretLine(string line)
+    {
+        try
         {
-            Environment = new Environment();
+            Environment.TextBuffer = new TextBuffer(line);
 
-            Environment.Words.AddRange(StackOperations.Primitives);
-            Environment.Words.AddRange(MathOperations.Primitives);
-            Environment.Words.AddRange(MemoryOperations.Primitives);
-            Environment.Words.AddRange(StringOperations.Primitives);
-            Environment.Words.AddRange(IOOperations.Primitives);
-            Environment.Words.AddRange(Variables.Primitives);
-            Environment.Words.AddRange(Compiling.Primitives);
-            Environment.Words.AddRange(ControlFlow.Primitives);
-            Environment.Words.AddRange(Comments.Primitives);
-            Environment.Words.AddRange(DevEnvironment.Primitives);
-            
-            Interpret(KernelSourceCode);
-            Environment.LastCompiledWord = null;
-        }
-
-        public Environment Environment { get; private set; }
-
-        public void InterpretLine(string line)
-        {
-            try
+            while (!Environment.TextBuffer.EndOfBuffer)
             {
-                Environment.TextBuffer = new TextBuffer(line);
-                
-                while (!Environment.TextBuffer.EndOfBuffer)
+                if (isInsideMultilineComment(Environment) ||
+                    TokenReader.ReadEmptyLineToken(Environment.TextBuffer) != null)
+                    continue;
+
+                var wordToken = TokenReader.ReadWordToken(Environment.TextBuffer);
+
+                if (Environment.Words.ContainsKey(wordToken.Name))
                 {
-                    if (isInsideMultilineComment(Environment) || TokenReader.ReadEmptyLineToken(Environment.TextBuffer) != null)
-                        continue;
-
-                    WordToken wordToken = TokenReader.ReadWordToken(Environment.TextBuffer);
-
-                    if (Environment.Words.ContainsKey(wordToken.Name))
-                        Environment.Words[wordToken.Name].Interpret(Environment);
-                    else
-                    {
-                        Environment.TextBuffer.UndoRead();
-
-                        SignedIntegerToken signedIntegerToken = TokenReader.ReadSignedIntegerToken(Environment.TextBuffer);
-                        if (signedIntegerToken != null)
-                            (new LiteralWord(signedIntegerToken.Value)).Interpret(Environment);
-                        else
-                            throw new InvalidWordException(Environment.TextBuffer, false);
-                    }
+                    Environment.Words[wordToken.Name].Interpret(Environment);
                 }
+                else
+                {
+                    Environment.TextBuffer.UndoRead();
 
-                if (Environment.ActiveExitWordName == "abort")
-                    throw new InvalidWordException(Environment.TextBuffer, "Aborted.");
-                Environment.ActiveExitWordName = null;
-            }
-            catch
-            {
-                Environment.Reset();
-                throw;
-            }
-        }
-
-        private bool isInsideMultilineComment(Environment env)
-        {
-            if (env.IsMultilineCommentMode)
-            {
-                ParanEndedStringToken paranEndedStringToken = TokenReader.ReadParanEndedStringToken(env.TextBuffer);
-                env.IsMultilineCommentMode = !paranEndedStringToken.IsEndingInParan;
-                return true;
+                    var signedIntegerToken = TokenReader.ReadSignedIntegerToken(Environment.TextBuffer);
+                    if (signedIntegerToken != null)
+                        new LiteralWord(signedIntegerToken.Value).Interpret(Environment);
+                    else
+                        throw new InvalidWordException(Environment.TextBuffer, false);
+                }
             }
 
-            return false;
+            if (Environment.ActiveExitWordName == "abort")
+                throw new InvalidWordException(Environment.TextBuffer, "Aborted.");
+            Environment.ActiveExitWordName = null;
+        }
+        catch
+        {
+            Environment.Reset();
+            throw;
+        }
+    }
+
+    private bool isInsideMultilineComment(Environment env)
+    {
+        if (env.IsMultilineCommentMode)
+        {
+            var paranEndedStringToken = TokenReader.ReadParanEndedStringToken(env.TextBuffer);
+            env.IsMultilineCommentMode = !paranEndedStringToken.IsEndingInParan;
+            return true;
         }
 
-        public void Interpret(string text)
-        {
-            foreach (string line in FileLoader.GetTextLines(text))
-                InterpretLine(line);
-        }
+        return false;
+    }
 
-        public static string KernelSourceCode
-        {
-            get { return FileLoader.ReadResource("ForthInterpreter.Kernel.Kernel.fth"); }
-        }
+    private void Interpret(string text)
+    {
+        foreach (var line in FileLoader.GetTextLines(text))
+            InterpretLine(line);
     }
 }

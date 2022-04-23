@@ -2,33 +2,28 @@
 using ForthInterpreter.Interpret;
 using ForthInterpreter.LexicalScan.Tokens;
 
-namespace ForthInterpreter.LexicalScan
+namespace ForthInterpreter.LexicalScan;
+
+internal class ParanEndedStringTokenReader : TokenReader
 {
-    class ParanEndedStringTokenReader : TokenReader
+    public ParanEndedStringTokenReader()
     {
-        public ParanEndedStringTokenReader()
-            : base()
-        {
-            StartsWithNonWhitespaceRegex = new Regex(@"\A \S",
-                                                     RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.Multiline |
-                                                     RegexOptions.IgnoreCase | RegexOptions.IgnorePatternWhitespace);
-        }
+        StartsWithNonWhitespaceRegex = new Regex(@"\A \S",
+            RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.Multiline |
+            RegexOptions.IgnoreCase | RegexOptions.IgnorePatternWhitespace);
+    }
 
-        protected override string TokenRegexPattern
-        {
-            get { return @"\A \s? ([^)\n]*) ( \) | $ )"; }
-        }
+    protected override string TokenRegexPattern => @"\A \s? ([^)\n]*) ( \) | $ )";
 
-        public override Token ReadToken(TextBuffer textBuffer)
-        {
-            Match match = GetMatch(textBuffer);
+    protected Regex StartsWithNonWhitespaceRegex { get; }
 
-            if (match.Groups[2].Value == ")" && StartsWithNonWhitespaceRegex.IsMatch(textBuffer.Remainder))
-                throw new InvalidWordException(textBuffer, "Comment not properly ended.", false);
+    public override Token ReadToken(TextBuffer textBuffer)
+    {
+        var match = GetMatch(textBuffer);
 
-            return new ParanEndedStringToken(match.Groups[1].Value, match.Groups[2].Value == ")");
-        }
+        if (match.Groups[2].Value == ")" && StartsWithNonWhitespaceRegex.IsMatch(textBuffer.Remainder))
+            throw new InvalidWordException(textBuffer, "Comment not properly ended.", false);
 
-        protected Regex StartsWithNonWhitespaceRegex { get; private set; }
+        return new ParanEndedStringToken(match.Groups[1].Value, match.Groups[2].Value == ")");
     }
 }

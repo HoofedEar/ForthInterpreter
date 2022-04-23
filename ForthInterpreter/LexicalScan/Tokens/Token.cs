@@ -1,7 +1,5 @@
-﻿
-namespace ForthInterpreter.LexicalScan.Tokens
+﻿namespace ForthInterpreter.LexicalScan.Tokens;
+
+public abstract class Token
 {
-    public abstract class Token
-    {
-    }
 }

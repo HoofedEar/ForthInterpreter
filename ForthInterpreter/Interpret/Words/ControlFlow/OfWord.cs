@@ -1,41 +1,35 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿namespace ForthInterpreter.Interpret.Words.ControlFlow;
 
-namespace ForthInterpreter.Interpret.Words.ControlFlow
+public class OfWord : ControlFlowWord
 {
-    public class OfWord : ControlFlowWord
+    public OfWord(Environment env)
+        : base("of", env)
     {
-        public OfWord(Environment env)
-            : base("of", env)
+        OfBodyWord = new ControlFlowWord("of-body", env);
+
+        PrimitiveExecuteAction = ExecuteOf;
+    }
+
+    public ControlFlowWord OfBodyWord { get; }
+
+
+    protected override string SeeNodeStartDelimiter => "of";
+    protected override string SeeNodeEndDelimiter => "endof";
+
+    protected override string SeeNodeFrontBodyDescription => OfBodyWord.SeeNodeDescription;
+
+    private void ExecuteOf(Environment env)
+    {
+        int ofParam = env.DataStack.Pop(), caseParam = env.DataStack.Peek();
+
+        if (ofParam == caseParam)
         {
-            OfBodyWord = new ControlFlowWord("of-body", env);
+            env.DataStack.Pop();
+            OfBodyWord.Execute(env);
 
-            PrimitiveExecuteAction = executeOf;
+            if (env.IsExitMode) return;
+
+            env.ActiveExitWordName = "leave-case";
         }
-
-        public ControlFlowWord OfBodyWord { get; private set; }
-
-        private void executeOf(Environment env)
-        {
-            int ofParam = env.DataStack.Pop(), caseParam = env.DataStack.Peek();
-
-            if (ofParam == caseParam)
-            {
-                env.DataStack.Pop();
-                OfBodyWord.Execute(env);
-
-                if (env.IsExitMode) return;
-
-                env.ActiveExitWordName = "leave-case";
-            }
-        }
-
-
-        protected override string SeeNodeStartDelimiter { get { return "of"; } }
-        protected override string SeeNodeEndDelimiter { get { return "endof"; } }
-
-        protected override string SeeNodeFrontBodyDescription { get { return OfBodyWord.SeeNodeDescription; } }
     }
 }

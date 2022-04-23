@@ -1,13 +1,11 @@
-﻿
-namespace ForthInterpreter.DataTypes
-{
-    public class CountedString
-    {
-        public CountedString(int counterAddress)
-        {
-            CounterAddress = counterAddress;
-        }
+﻿namespace ForthInterpreter.DataTypes;
 
-        public int CounterAddress { get; private set; }
+public class CountedString
+{
+    public CountedString(int counterAddress)
+    {
+        CounterAddress = counterAddress;
     }
+
+    public int CounterAddress { get; }
 }

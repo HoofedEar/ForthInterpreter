@@ -1,59 +1,56 @@
 ﻿using ForthInterpreter.Interpret;
 using ForthInterpreter.Interpret.Words;
 
-namespace ForthInterpreter.Kernel
+namespace ForthInterpreter.Kernel;
+
+public static class Variables
 {
-    public static class Variables
+    public static Word[] Primitives { get; } =
     {
-        public static Word[] Primitives { get { return primitives; } }
+        new("variable",
+            env =>
+            {
+                var wordName = Validate.ReadMandatoryWordName(env);
+                var variableAddress = env.Memory.AllocateCell();
 
-        private static Word[] primitives = new Word[]
-        {
-            new Word("variable",
-                env =>
-                {
-                    string wordName = Validate.ReadMandatoryWordName(env);
-                    int variableAddress = env.Memory.AllocateCell();
+                env.LastCompiledWord = new VariableWord(wordName, variableAddress);
+                env.Words.AddOrUpdate(env.LastCompiledWord);
+            }),
+        new("value",
+            env =>
+            {
+                var wordName = Validate.ReadMandatoryWordName(env);
+                var initialValue = env.DataStack.Pop();
+                var variableAddress = env.Memory.AllocateAndStoreCell(initialValue);
 
-                    env.LastCompiledWord = new VariableWord(wordName, variableAddress);
-                    env.Words.AddOrUpdate(env.LastCompiledWord);
-                }),
-            new Word("value",
-                env =>
-                {
-                    string wordName = Validate.ReadMandatoryWordName(env);
-                    int initialValue = env.DataStack.Pop();
-                    int variableAddress = env.Memory.AllocateAndStoreCell(initialValue);
+                env.LastCompiledWord = new ConstantWord(wordName, variableAddress, env);
+                env.Words.AddOrUpdate(env.LastCompiledWord);
+            }),
+        new("to",
+            env =>
+            {
+                var instanceWord = Validate.ReadExistingInstanceWord(env, "constant");
+                var variableAddress = instanceWord.AllocatedAddress;
+                var value = env.DataStack.Pop();
 
-                    env.LastCompiledWord = new ConstantWord(wordName, variableAddress, env);
-                    env.Words.AddOrUpdate(env.LastCompiledWord);
-                }),
-            new Word("to",
-                env =>
-                {
-                    InstanceWord instanceWord = Validate.ReadExistingInstanceWord(env, "constant");
-                    int variableAddress = instanceWord.AllocatedAddress;
-                    int value = env.DataStack.Pop();
-                    
-                    env.Memory.StoreCell(value, variableAddress);
-                }),
-            new Word("addr",
-                env =>
-                {
-                    InstanceWord instanceWord = Validate.ReadExistingInstanceWord(env, "constant");
-                    int variableAddress = instanceWord.AllocatedAddress;
-                    
-                    env.DataStack.Push(variableAddress);
-                }),
-            new Word("create",
-                env =>
-                {
-                    string wordName = Validate.ReadMandatoryWordName(env);
-                    int variableAddress = env.Memory.FirstFreeAddress;
+                env.Memory.StoreCell(value, variableAddress);
+            }),
+        new("addr",
+            env =>
+            {
+                var instanceWord = Validate.ReadExistingInstanceWord(env, "constant");
+                var variableAddress = instanceWord.AllocatedAddress;
 
-                    env.LastCompiledWord = new VariableWord(wordName, variableAddress);
-                    env.Words.AddOrUpdate(env.LastCompiledWord);
-                })
-        };
-    }
+                env.DataStack.Push(variableAddress);
+            }),
+        new("create",
+            env =>
+            {
+                var wordName = Validate.ReadMandatoryWordName(env);
+                var variableAddress = env.Memory.FirstFreeAddress;
+
+                env.LastCompiledWord = new VariableWord(wordName, variableAddress);
+                env.Words.AddOrUpdate(env.LastCompiledWord);
+            })
+    };
 }

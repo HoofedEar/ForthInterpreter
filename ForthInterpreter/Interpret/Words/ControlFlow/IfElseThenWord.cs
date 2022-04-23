@@ -1,35 +1,34 @@
 ﻿using ForthInterpreter.DataTypes;
 
-namespace ForthInterpreter.Interpret.Words.ControlFlow
+namespace ForthInterpreter.Interpret.Words.ControlFlow;
+
+public class IfElseThenWord : ControlFlowWord
 {
-    public class IfElseThenWord : ControlFlowWord
+    public IfElseThenWord(Environment env)
+        : base("if", env)
     {
-        public IfElseThenWord(Environment env)
-            : base("if", env)
-        {
-            TrueBranchWord = new ControlFlowWord("branch", env);
-            FalseBranchWord = new ControlFlowWord("branch", env);
+        TrueBranchWord = new ControlFlowWord("branch", env);
+        FalseBranchWord = new ControlFlowWord("branch", env);
 
-            PrimitiveExecuteAction = executeBranch;
-        }
+        PrimitiveExecuteAction = ExecuteBranch;
+    }
 
-        public ControlFlowWord TrueBranchWord { get; private set; }
-        public ControlFlowWord FalseBranchWord { get; private set; }
-
-        private void executeBranch(Environment env)
-        {
-            if (BoolType.IsTrue(env.DataStack.Pop()))
-                TrueBranchWord.Execute(env);
-            else
-                FalseBranchWord.Execute(env);
-        }
+    public ControlFlowWord TrueBranchWord { get; }
+    public ControlFlowWord FalseBranchWord { get; }
 
 
-        protected override string SeeNodeStartDelimiter { get { return "if"; } }
-        protected override string SeeNodeMidDelimiter { get { return "else"; } }
-        protected override string SeeNodeEndDelimiter { get { return "then"; } }
+    protected override string SeeNodeStartDelimiter => "if";
+    protected override string SeeNodeMidDelimiter => "else";
+    protected override string SeeNodeEndDelimiter => "then";
 
-        protected override string SeeNodeFrontBodyDescription { get { return TrueBranchWord.SeeNodeDescription; } }
-        protected override string SeeNodeRearBodyDescription { get { return FalseBranchWord.SeeNodeDescription; } }
+    protected override string SeeNodeFrontBodyDescription => TrueBranchWord.SeeNodeDescription;
+    protected override string SeeNodeRearBodyDescription => FalseBranchWord.SeeNodeDescription;
+
+    private void ExecuteBranch(Environment env)
+    {
+        if (BoolType.IsTrue(env.DataStack.Pop()))
+            TrueBranchWord.Execute(env);
+        else
+            FalseBranchWord.Execute(env);
     }
 }
