@@ -11,7 +11,7 @@ internal static class Program
         {
             var interpreter = new Interpreter();
 
-            Console.WriteLine("Forth .NET Interpreter, Copyright (C) 2008 Adrian Istrate");
+            Console.WriteLine("Forth .NET Interpreter");
             Console.WriteLine("Type 'bye' to exit\n");
 
             while (true)
